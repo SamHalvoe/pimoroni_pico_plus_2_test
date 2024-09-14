@@ -1,0 +1,35 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.11.35222.181
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pimoroni_pico_plus_2_test", "pimoroni_pico_plus_2_test\pimoroni_pico_plus_2_test.vcxproj", "{62174032-AA98-41D1-AC33-60353EE6D724}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM = Debug|ARM
+		Debug|ARM64 = Debug|ARM64
+		Release|ARM = Release|ARM
+		Release|ARM64 = Release|ARM64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{62174032-AA98-41D1-AC33-60353EE6D724}.Debug|ARM.ActiveCfg = Debug|ARM
+		{62174032-AA98-41D1-AC33-60353EE6D724}.Debug|ARM.Build.0 = Debug|ARM
+		{62174032-AA98-41D1-AC33-60353EE6D724}.Debug|ARM.Deploy.0 = Debug|ARM
+		{62174032-AA98-41D1-AC33-60353EE6D724}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{62174032-AA98-41D1-AC33-60353EE6D724}.Debug|ARM64.Build.0 = Debug|ARM64
+		{62174032-AA98-41D1-AC33-60353EE6D724}.Debug|ARM64.Deploy.0 = Debug|ARM64
+		{62174032-AA98-41D1-AC33-60353EE6D724}.Release|ARM.ActiveCfg = Release|ARM
+		{62174032-AA98-41D1-AC33-60353EE6D724}.Release|ARM.Build.0 = Release|ARM
+		{62174032-AA98-41D1-AC33-60353EE6D724}.Release|ARM.Deploy.0 = Release|ARM
+		{62174032-AA98-41D1-AC33-60353EE6D724}.Release|ARM64.ActiveCfg = Release|ARM64
+		{62174032-AA98-41D1-AC33-60353EE6D724}.Release|ARM64.Build.0 = Release|ARM64
+		{62174032-AA98-41D1-AC33-60353EE6D724}.Release|ARM64.Deploy.0 = Release|ARM64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A739162A-D191-403D-BBB9-92F227BC2259}
+	EndGlobalSection
+EndGlobal
