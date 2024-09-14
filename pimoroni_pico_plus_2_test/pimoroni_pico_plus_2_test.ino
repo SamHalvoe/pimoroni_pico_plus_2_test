@@ -24,7 +24,7 @@ static inline uint8_t colour_rgb332(uint8_t r, uint8_t g, uint8_t b) {
 const size_t framebufSize = 640 * 480;
 static uint8_t __attribute__((aligned(4))) framebuf[framebufSize];
 
-static void setFramebuf(char in_value)
+static void setFramebuf(uint8_t in_value)
 {
   memset(framebuf, in_value, framebufSize);
 }
@@ -276,7 +276,7 @@ void setup()
 {
   pinMode(LED_BUILTIN, OUTPUT);
 
-  setFramebuf(110);
+  setFramebuf(colour_rgb332(0, 0b01100000, 0b01100000));//setFramebuf(110);
   startFrameDMAWithHSTX();
   timeSinceLedToggled = 0;
 }

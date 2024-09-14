@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/pimoroni_pico_plus_2_test/__vm/Compile.vmps.xml
+/pimoroni_pico_plus_2_test/__vm/Upload.vmps.xml
