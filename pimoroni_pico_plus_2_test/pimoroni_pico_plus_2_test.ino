@@ -276,7 +276,7 @@ void setup()
 {
   pinMode(LED_BUILTIN, OUTPUT);
 
-  setFramebuf(colour_rgb332(127, 0, 0));
+  setFramebuf(110);
   startFrameDMAWithHSTX();
   timeSinceLedToggled = 0;
 }
