@@ -162,25 +162,65 @@ void __scratch_x("") dma_irq_handler()
   }
 }
 
-void startFrameDMAWithHSTX()
+void setupHSTX()
 {
   // Configure HSTX's TMDS encoder for RGB565
-  /*hstx_ctrl_hw->expand_tmds =
+  hstx_ctrl_hw->expand_tmds =
     4 << HSTX_CTRL_EXPAND_TMDS_L2_NBITS_LSB |
     0 << HSTX_CTRL_EXPAND_TMDS_L2_ROT_LSB |
     5 << HSTX_CTRL_EXPAND_TMDS_L1_NBITS_LSB |
     27 << HSTX_CTRL_EXPAND_TMDS_L1_ROT_LSB |
     4 << HSTX_CTRL_EXPAND_TMDS_L0_NBITS_LSB |
-    21 << HSTX_CTRL_EXPAND_TMDS_L0_ROT_LSB;*/
+    21 << HSTX_CTRL_EXPAND_TMDS_L0_ROT_LSB;
 
   // Pixels (TMDS) come in 2 16-bit chunks.
   // Control symbols (RAW) are an entire 32-bit word.
-  /*hstx_ctrl_hw->expand_shift =
+  hstx_ctrl_hw->expand_shift =
     2 << HSTX_CTRL_EXPAND_SHIFT_ENC_N_SHIFTS_LSB |
     16 << HSTX_CTRL_EXPAND_SHIFT_ENC_SHIFT_LSB |
     1 << HSTX_CTRL_EXPAND_SHIFT_RAW_N_SHIFTS_LSB |
-    0 << HSTX_CTRL_EXPAND_SHIFT_RAW_SHIFT_LSB;*/
+    0 << HSTX_CTRL_EXPAND_SHIFT_RAW_SHIFT_LSB;
 
+  // Note we are leaving the HSTX clock at the SDK default of 125 MHz; since
+  // we shift out two bits per HSTX clock cycle, this gives us an output of
+  // 250 Mbps, which is very close to the bit clock for 480p 60Hz (252 MHz).
+  // If we want the exact rate then we'll have to reconfigure PLLs.
+
+  // HSTX outputs 0 through 7 appear on GPIO 12 through 19.
+  // Pinout on Pico DVI sock:
+  //
+  //   GP12 D0+  GP13 D0-
+  //   GP14 CK+  GP15 CK-
+  //   GP16 D2+  GP17 D2-
+  //   GP18 D1+  GP19 D1-
+
+  // Assign clock pair to two neighbouring pins:
+  hstx_ctrl_hw->bit[2] = HSTX_CTRL_BIT0_CLK_BITS;
+  hstx_ctrl_hw->bit[3] = HSTX_CTRL_BIT0_CLK_BITS | HSTX_CTRL_BIT0_INV_BITS;
+  for (uint lane = 0; lane < 3; ++lane)
+  {
+    // For each TMDS lane, assign it to the correct GPIO pair based on the
+    // desired pinout:
+    static const int lane_to_output_bit[3] = { 0, 6, 4 };
+    int bit = lane_to_output_bit[lane];
+    // Output even bits during first half of each HSTX cycle, and odd bits
+    // during second half. The shifter advances by two bits each cycle.
+    uint32_t lane_data_sel_bits =
+      (lane * 10) << HSTX_CTRL_BIT0_SEL_P_LSB |
+      (lane * 10 + 1) << HSTX_CTRL_BIT0_SEL_N_LSB;
+    // The two halves of each pair get identical data, but one pin is inverted.
+    hstx_ctrl_hw->bit[bit] = lane_data_sel_bits;
+    hstx_ctrl_hw->bit[bit + 1] = lane_data_sel_bits | HSTX_CTRL_BIT0_INV_BITS;
+  }
+
+  for (int i = 12; i <= 19; ++i)
+  {
+    gpio_set_function(i, GPIO_FUNC_HSTX); // HSTX
+  }
+}
+
+void setupHSTXrgb332()
+{
   // Configure HSTX's TMDS encoder for RGB332
   hstx_ctrl_hw->expand_tmds =
     2 << HSTX_CTRL_EXPAND_TMDS_L2_NBITS_LSB |
@@ -244,7 +284,10 @@ void startFrameDMAWithHSTX()
   {
     gpio_set_function(i, GPIO_FUNC_HSTX); // HSTX
   }
+}
 
+void setupScanlineDMA()
+{
   // Both channels are set up identically, to transfer a whole scanline and
   // then chain to the opposite channel. Each time a channel finishes, we
   // reconfigure the one that just finished, meanwhile the opposite channel
@@ -283,15 +326,20 @@ void startFrameDMAWithHSTX()
   dma_channel_start(DMACH_PING);
 }
 
+void setupDVI()
+{
+  setFramebuf(colour_rgb332(0, 0b01100000, 0b01100000));//setFramebuf(110);
+  setupHSTXrgb332();
+  setupScanlineDMA();
+}
+
 elapsedMillis timeSinceLedToggled;
 bool isLedOn = false;
 
 void setup()
 {
   pinMode(LED_BUILTIN, OUTPUT);
-
-  setFramebuf(colour_rgb332(0, 0b01100000, 0b01100000));//setFramebuf(110);
-  startFrameDMAWithHSTX();
+  setupDVI();
   timeSinceLedToggled = 0;
 }
 
