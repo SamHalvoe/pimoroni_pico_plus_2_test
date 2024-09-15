@@ -370,8 +370,11 @@ void setupDVI()
                       CLOCKS_CLK_SYS_CTRL_AUXSRC_VALUE_CLKSRC_PLL_SYS,
                       SYS_CLK_HZ, 126 * 1000000))
   {
-    digitalWrite(LED_BUILTIN, HIGH);
+    Serial.println("clock_configure for clk_hstx succeded");
   }
+
+  Serial.print("clk_hstx in hz: ");
+  Serial.println(clock_get_hz(clk_hstx));
   
   setFramebuf(colour_rgb332(0b01000000, 0b01000000, 0b01000000));
   setupHSTXrgb332();
@@ -393,6 +396,11 @@ bool isLedOn = false;
 void setup()
 {
   pinMode(LED_BUILTIN, OUTPUT);
+
+  Serial.begin(115200);
+  delay(2000); //while (not Serial) { delay(10); }
+  Serial.println("Serial is ready.");
+
   setupDVI();
   timeSinceLedToggled = 0;
 }
@@ -402,10 +410,10 @@ void setup()
 
 void loop()
 {
-  /*if (timeSinceLedToggled >= 250)
+  if (timeSinceLedToggled >= 250)
   {
     digitalWrite(LED_BUILTIN, isLedOn ? LOW : HIGH);
     isLedOn = not isLedOn;
     timeSinceLedToggled = 0;
-  }*/
+  }
 }
