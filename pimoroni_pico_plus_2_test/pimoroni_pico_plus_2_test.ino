@@ -28,8 +28,18 @@ static inline uint8_t colour_rgb332(uint8_t r, uint8_t g, uint8_t b) {
 //const size_t framebufSize = 640 * 480;
 const size_t framebufSize = 480 * 320;
 static uint8_t __attribute__((aligned(4))) framebuf[framebufSize];
+//static uint16_t __attribute__((aligned(4))) framebuf[framebufSize];
 
 static void setFramebuf(uint8_t in_value)
+{
+  //memset(framebuf, in_value, framebufSize);
+  for (size_t index = 0; index < framebufSize; ++index)
+  {
+    framebuf[index] = index % 2 == 0 ? 0 : in_value;
+  }
+}
+
+static void setFramebuf(uint16_t in_value)
 {
   //memset(framebuf, in_value, framebufSize);
   for (size_t index = 0; index < framebufSize; ++index)
@@ -243,7 +253,8 @@ void setupHSTXrgb565()
     int bit = lane_to_output_bit[lane];
     // Output even bits during first half of each HSTX cycle, and odd bits
     // during second half. The shifter advances by two bits each cycle.
-    uint32_t lane_data_sel_bits = (lane * 10) << HSTX_CTRL_BIT0_SEL_P_LSB |
+    uint32_t lane_data_sel_bits =
+      (lane * 10) << HSTX_CTRL_BIT0_SEL_P_LSB |
       (lane * 10 + 1) << HSTX_CTRL_BIT0_SEL_N_LSB;
     // The two halves of each pair get identical data, but one pin is inverted.
     hstx_ctrl_hw->bit[bit] = lane_data_sel_bits;
@@ -329,6 +340,7 @@ void setupScanlineDMA()
     count_of(vblank_line_vsync_off),
     false
   );
+
   c = dma_channel_get_default_config(DMACH_PONG);
   channel_config_set_chain_to(&c, DMACH_PING);
   channel_config_set_dreq(&c, DREQ_HSTX);
@@ -353,9 +365,9 @@ void setupScanlineDMA()
 
 void setupDVI()
 {
-  setFramebuf(colour_rgb332(0, 0b01100000, 0b01100000));
+  setFramebuf(colour_rgb332(0b01000000, 0b01000000, 0b01000000));
   setupHSTXrgb332();
-  /*setFramebuf(colour_rgb565(0b11111000, 0, 0));
+  /*setFramebuf(colour_rgb565(0b10000000, 0, 0));
   setupHSTXrgb565();*/
   setupScanlineDMA();
 }
