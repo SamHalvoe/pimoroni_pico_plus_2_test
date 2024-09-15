@@ -365,10 +365,16 @@ void setupScanlineDMA()
 
 void setupDVI()
 {
+  if (clock_configure(clk_hstx, clk_sys, clk_sys, 150 * 1000000, 126 * 1000000))
+  {
+    digitalWrite(LED_BUILTIN, HIGH);
+  }
+  
   setFramebuf(colour_rgb332(0b01000000, 0b01000000, 0b01000000));
   setupHSTXrgb332();
   /*setFramebuf(colour_rgb565(0b10000000, 0, 0));
   setupHSTXrgb565();*/
+
   setupScanlineDMA();
 }
 
@@ -393,10 +399,10 @@ void setup()
 
 void loop()
 {
-  if (timeSinceLedToggled >= 250)
+  /*if (timeSinceLedToggled >= 250)
   {
     digitalWrite(LED_BUILTIN, isLedOn ? LOW : HIGH);
     isLedOn = not isLedOn;
     timeSinceLedToggled = 0;
-  }
+  }*/
 }
