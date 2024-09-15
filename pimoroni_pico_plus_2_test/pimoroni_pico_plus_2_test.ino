@@ -160,6 +160,23 @@ void __scratch_x("") dma_irq_handler()
 
 void startFrameDMAWithHSTX()
 {
+  // Configure HSTX's TMDS encoder for RGB565
+  /*hstx_ctrl_hw->expand_tmds =
+    4 << HSTX_CTRL_EXPAND_TMDS_L2_NBITS_LSB |
+    0 << HSTX_CTRL_EXPAND_TMDS_L2_ROT_LSB |
+    5 << HSTX_CTRL_EXPAND_TMDS_L1_NBITS_LSB |
+    27 << HSTX_CTRL_EXPAND_TMDS_L1_ROT_LSB |
+    4 << HSTX_CTRL_EXPAND_TMDS_L0_NBITS_LSB |
+    21 << HSTX_CTRL_EXPAND_TMDS_L0_ROT_LSB;*/
+
+  // Pixels (TMDS) come in 2 16-bit chunks.
+  // Control symbols (RAW) are an entire 32-bit word.
+  /*hstx_ctrl_hw->expand_shift =
+    2 << HSTX_CTRL_EXPAND_SHIFT_ENC_N_SHIFTS_LSB |
+    16 << HSTX_CTRL_EXPAND_SHIFT_ENC_SHIFT_LSB |
+    1 << HSTX_CTRL_EXPAND_SHIFT_RAW_N_SHIFTS_LSB |
+    0 << HSTX_CTRL_EXPAND_SHIFT_RAW_SHIFT_LSB;*/
+
   // Configure HSTX's TMDS encoder for RGB332
   hstx_ctrl_hw->expand_tmds =
     2 << HSTX_CTRL_EXPAND_TMDS_L2_NBITS_LSB |
@@ -168,15 +185,6 @@ void startFrameDMAWithHSTX()
     29 << HSTX_CTRL_EXPAND_TMDS_L1_ROT_LSB |
     1 << HSTX_CTRL_EXPAND_TMDS_L0_NBITS_LSB |
     26 << HSTX_CTRL_EXPAND_TMDS_L0_ROT_LSB;
-
-  // Configure HSTX's TMDS encoder for RGB565
-  /*hstx_ctrl_hw->expand_tmds =
-    4 << HSTX_CTRL_EXPAND_TMDS_L2_NBITS_LSB |
-    ?? << HSTX_CTRL_EXPAND_TMDS_L2_ROT_LSB |
-    5 << HSTX_CTRL_EXPAND_TMDS_L1_NBITS_LSB |
-    ?? << HSTX_CTRL_EXPAND_TMDS_L1_ROT_LSB |
-    4 << HSTX_CTRL_EXPAND_TMDS_L0_NBITS_LSB |
-    ?? << HSTX_CTRL_EXPAND_TMDS_L0_ROT_LSB;*/
 
   // Pixels (TMDS) come in 4 8-bit chunks. Control symbols (RAW) are an
   // entire 32-bit word.
@@ -212,7 +220,8 @@ void startFrameDMAWithHSTX()
   // Assign clock pair to two neighbouring pins:
   hstx_ctrl_hw->bit[2] = HSTX_CTRL_BIT0_CLK_BITS;
   hstx_ctrl_hw->bit[3] = HSTX_CTRL_BIT0_CLK_BITS | HSTX_CTRL_BIT0_INV_BITS;
-  for (uint lane = 0; lane < 3; ++lane) {
+  for (uint lane = 0; lane < 3; ++lane)
+  {
     // For each TMDS lane, assign it to the correct GPIO pair based on the
     // desired pinout:
     static const int lane_to_output_bit[3] = { 0, 6, 4 };
@@ -227,7 +236,8 @@ void startFrameDMAWithHSTX()
     hstx_ctrl_hw->bit[bit + 1] = lane_data_sel_bits | HSTX_CTRL_BIT0_INV_BITS;
   }
 
-  for (int i = 12; i <= 19; ++i) {
+  for (int i = 12; i <= 19; ++i)
+  {
     gpio_set_function(i, GPIO_FUNC_HSTX); // HSTX
   }
 
