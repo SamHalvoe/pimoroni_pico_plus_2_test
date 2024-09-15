@@ -25,12 +25,17 @@ static inline uint8_t colour_rgb332(uint8_t r, uint8_t g, uint8_t b) {
 }
 
 // FRAME BUFFER
-const size_t framebufSize = 640 * 480;
+//const size_t framebufSize = 640 * 480;
+const size_t framebufSize = 480 * 320;
 static uint8_t __attribute__((aligned(4))) framebuf[framebufSize];
 
 static void setFramebuf(uint8_t in_value)
 {
-  memset(framebuf, in_value, framebufSize);
+  //memset(framebuf, in_value, framebufSize);
+  for (size_t index = 0; index < framebufSize; ++index)
+  {
+    framebuf[index] = index % 2 == 0 ? 0 : in_value;
+  }
 }
 
 // ----------------------------------------------------------------------------
@@ -46,7 +51,8 @@ static void setFramebuf(uint8_t in_value)
 #define SYNC_V1_H0 (TMDS_CTRL_10 | (TMDS_CTRL_00 << 10) | (TMDS_CTRL_00 << 20))
 #define SYNC_V1_H1 (TMDS_CTRL_11 | (TMDS_CTRL_00 << 10) | (TMDS_CTRL_00 << 20))
 
-#define MODE_H_SYNC_POLARITY 0
+// constants for 640 x 480 pixels
+/*#define MODE_H_SYNC_POLARITY 0
 #define MODE_H_FRONT_PORCH   16
 #define MODE_H_SYNC_WIDTH    96
 #define MODE_H_BACK_PORCH    48
@@ -56,7 +62,20 @@ static void setFramebuf(uint8_t in_value)
 #define MODE_V_FRONT_PORCH   10
 #define MODE_V_SYNC_WIDTH    2
 #define MODE_V_BACK_PORCH    33
-#define MODE_V_ACTIVE_LINES  480
+#define MODE_V_ACTIVE_LINES  480*/
+
+// constants for 480 x 320 pixels
+#define MODE_H_SYNC_POLARITY 1
+#define MODE_H_FRONT_PORCH   48
+#define MODE_H_SYNC_WIDTH    32
+#define MODE_H_BACK_PORCH    80
+#define MODE_H_ACTIVE_PIXELS 480
+
+#define MODE_V_SYNC_POLARITY 0
+#define MODE_V_FRONT_PORCH   3
+#define MODE_V_SYNC_WIDTH    10
+#define MODE_V_BACK_PORCH    6
+#define MODE_V_ACTIVE_LINES  320
 
 #define MODE_H_TOTAL_PIXELS ( \
     MODE_H_FRONT_PORCH + MODE_H_SYNC_WIDTH + \
@@ -112,112 +131,7 @@ static uint32_t vactive_line[] = {
 };
 
 // ----------------------------------------------------------------------------
-// DMA logic
-
-#define DMACH_PING 0
-#define DMACH_PONG 1
-
-// First we ping. Then we pong. Then... we ping again.
-static bool dma_pong = false;
-
-// A ping and a pong are cued up initially, so the first time we enter this
-// handler it is to cue up the second ping after the first ping has completed.
-// This is the third scanline overall (-> =2 because zero-based).
-static uint v_scanline = 2;
-
-// During the vertical active period, we take two IRQs per scanline: one to
-// post the command list, and another to post the pixels.
-static bool vactive_cmdlist_posted = false;
-
-void __scratch_x("") dma_irq_handler()
-{
-  // dma_pong indicates the channel that just finished, which is the one
-  // we're about to reload.
-  uint ch_num = dma_pong ? DMACH_PONG : DMACH_PING;
-  dma_channel_hw_t* ch = &dma_hw->ch[ch_num];
-  dma_hw->intr = 1u << ch_num;
-  dma_pong = !dma_pong;
-
-  if (v_scanline >= MODE_V_FRONT_PORCH && v_scanline < (MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH)) {
-    ch->read_addr = (uintptr_t)vblank_line_vsync_on;
-    ch->transfer_count = count_of(vblank_line_vsync_on);
-  }
-  else if (v_scanline < MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH) {
-    ch->read_addr = (uintptr_t)vblank_line_vsync_off;
-    ch->transfer_count = count_of(vblank_line_vsync_off);
-  }
-  else if (!vactive_cmdlist_posted) {
-    ch->read_addr = (uintptr_t)vactive_line;
-    ch->transfer_count = count_of(vactive_line);
-    vactive_cmdlist_posted = true;
-  }
-  else {
-    ch->read_addr = (uintptr_t)&framebuf[(v_scanline - (MODE_V_TOTAL_LINES - MODE_V_ACTIVE_LINES)) * MODE_H_ACTIVE_PIXELS];
-    ch->transfer_count = MODE_H_ACTIVE_PIXELS / sizeof(uint32_t);
-    vactive_cmdlist_posted = false;
-  }
-
-  if (!vactive_cmdlist_posted) {
-    v_scanline = (v_scanline + 1) % MODE_V_TOTAL_LINES;
-  }
-}
-
-void setupHSTX()
-{
-  // Configure HSTX's TMDS encoder for RGB565
-  hstx_ctrl_hw->expand_tmds =
-    4 << HSTX_CTRL_EXPAND_TMDS_L2_NBITS_LSB |
-    0 << HSTX_CTRL_EXPAND_TMDS_L2_ROT_LSB |
-    5 << HSTX_CTRL_EXPAND_TMDS_L1_NBITS_LSB |
-    27 << HSTX_CTRL_EXPAND_TMDS_L1_ROT_LSB |
-    4 << HSTX_CTRL_EXPAND_TMDS_L0_NBITS_LSB |
-    21 << HSTX_CTRL_EXPAND_TMDS_L0_ROT_LSB;
-
-  // Pixels (TMDS) come in 2 16-bit chunks.
-  // Control symbols (RAW) are an entire 32-bit word.
-  hstx_ctrl_hw->expand_shift =
-    2 << HSTX_CTRL_EXPAND_SHIFT_ENC_N_SHIFTS_LSB |
-    16 << HSTX_CTRL_EXPAND_SHIFT_ENC_SHIFT_LSB |
-    1 << HSTX_CTRL_EXPAND_SHIFT_RAW_N_SHIFTS_LSB |
-    0 << HSTX_CTRL_EXPAND_SHIFT_RAW_SHIFT_LSB;
-
-  // Note we are leaving the HSTX clock at the SDK default of 125 MHz; since
-  // we shift out two bits per HSTX clock cycle, this gives us an output of
-  // 250 Mbps, which is very close to the bit clock for 480p 60Hz (252 MHz).
-  // If we want the exact rate then we'll have to reconfigure PLLs.
-
-  // HSTX outputs 0 through 7 appear on GPIO 12 through 19.
-  // Pinout on Pico DVI sock:
-  //
-  //   GP12 D0+  GP13 D0-
-  //   GP14 CK+  GP15 CK-
-  //   GP16 D2+  GP17 D2-
-  //   GP18 D1+  GP19 D1-
-
-  // Assign clock pair to two neighbouring pins:
-  hstx_ctrl_hw->bit[2] = HSTX_CTRL_BIT0_CLK_BITS;
-  hstx_ctrl_hw->bit[3] = HSTX_CTRL_BIT0_CLK_BITS | HSTX_CTRL_BIT0_INV_BITS;
-  for (uint lane = 0; lane < 3; ++lane)
-  {
-    // For each TMDS lane, assign it to the correct GPIO pair based on the
-    // desired pinout:
-    static const int lane_to_output_bit[3] = { 0, 6, 4 };
-    int bit = lane_to_output_bit[lane];
-    // Output even bits during first half of each HSTX cycle, and odd bits
-    // during second half. The shifter advances by two bits each cycle.
-    uint32_t lane_data_sel_bits =
-      (lane * 10) << HSTX_CTRL_BIT0_SEL_P_LSB |
-      (lane * 10 + 1) << HSTX_CTRL_BIT0_SEL_N_LSB;
-    // The two halves of each pair get identical data, but one pin is inverted.
-    hstx_ctrl_hw->bit[bit] = lane_data_sel_bits;
-    hstx_ctrl_hw->bit[bit + 1] = lane_data_sel_bits | HSTX_CTRL_BIT0_INV_BITS;
-  }
-
-  for (int i = 12; i <= 19; ++i)
-  {
-    gpio_set_function(i, GPIO_FUNC_HSTX); // HSTX
-  }
-}
+// HSTX setup
 
 void setupHSTXrgb332()
 {
@@ -286,6 +200,117 @@ void setupHSTXrgb332()
   }
 }
 
+void setupHSTXrgb565()
+{
+  // Configure HSTX's TMDS encoder for RGB565
+  hstx_ctrl_hw->expand_tmds =
+    4 << HSTX_CTRL_EXPAND_TMDS_L2_NBITS_LSB |
+    0 << HSTX_CTRL_EXPAND_TMDS_L2_ROT_LSB |
+    5 << HSTX_CTRL_EXPAND_TMDS_L1_NBITS_LSB |
+    27 << HSTX_CTRL_EXPAND_TMDS_L1_ROT_LSB |
+    4 << HSTX_CTRL_EXPAND_TMDS_L0_NBITS_LSB |
+    21 << HSTX_CTRL_EXPAND_TMDS_L0_ROT_LSB;
+
+  // Pixels (TMDS) come in 2 16-bit chunks.
+  // Control symbols (RAW) are an entire 32-bit word.
+  hstx_ctrl_hw->expand_shift =
+    2 << HSTX_CTRL_EXPAND_SHIFT_ENC_N_SHIFTS_LSB |
+    16 << HSTX_CTRL_EXPAND_SHIFT_ENC_SHIFT_LSB |
+    1 << HSTX_CTRL_EXPAND_SHIFT_RAW_N_SHIFTS_LSB |
+    0 << HSTX_CTRL_EXPAND_SHIFT_RAW_SHIFT_LSB;
+
+  // Note we are leaving the HSTX clock at the SDK default of 125 MHz; since
+  // we shift out two bits per HSTX clock cycle, this gives us an output of
+  // 250 Mbps, which is very close to the bit clock for 480p 60Hz (252 MHz).
+  // If we want the exact rate then we'll have to reconfigure PLLs.
+
+  // HSTX outputs 0 through 7 appear on GPIO 12 through 19.
+  // Pinout on Pico DVI sock:
+  //
+  //   GP12 D0+  GP13 D0-
+  //   GP14 CK+  GP15 CK-
+  //   GP16 D2+  GP17 D2-
+  //   GP18 D1+  GP19 D1-
+
+  // Assign clock pair to two neighbouring pins:
+  hstx_ctrl_hw->bit[2] = HSTX_CTRL_BIT0_CLK_BITS;
+  hstx_ctrl_hw->bit[3] = HSTX_CTRL_BIT0_CLK_BITS | HSTX_CTRL_BIT0_INV_BITS;
+  for (uint lane = 0; lane < 3; ++lane)
+  {
+    // For each TMDS lane, assign it to the correct GPIO pair based on the
+    // desired pinout:
+    static const int lane_to_output_bit[3] = { 0, 6, 4 };
+    int bit = lane_to_output_bit[lane];
+    // Output even bits during first half of each HSTX cycle, and odd bits
+    // during second half. The shifter advances by two bits each cycle.
+    uint32_t lane_data_sel_bits = (lane * 10) << HSTX_CTRL_BIT0_SEL_P_LSB |
+      (lane * 10 + 1) << HSTX_CTRL_BIT0_SEL_N_LSB;
+    // The two halves of each pair get identical data, but one pin is inverted.
+    hstx_ctrl_hw->bit[bit] = lane_data_sel_bits;
+    hstx_ctrl_hw->bit[bit + 1] = lane_data_sel_bits | HSTX_CTRL_BIT0_INV_BITS;
+  }
+
+  for (int i = 12; i <= 19; ++i)
+  {
+    gpio_set_function(i, GPIO_FUNC_HSTX); // HSTX
+  }
+}
+
+// ----------------------------------------------------------------------------
+// DMA logic
+
+#define DMACH_PING 0
+#define DMACH_PONG 1
+
+// First we ping. Then we pong. Then... we ping again.
+static bool dma_pong = false;
+
+// A ping and a pong are cued up initially, so the first time we enter this
+// handler it is to cue up the second ping after the first ping has completed.
+// This is the third scanline overall (-> =2 because zero-based).
+static uint v_scanline = 2;
+
+// During the vertical active period, we take two IRQs per scanline: one to
+// post the command list, and another to post the pixels.
+static bool vactive_cmdlist_posted = false;
+
+void __not_in_flash_func(dma_irq_handler)()
+{
+  // dma_pong indicates the channel that just finished, which is the one we're about to reload.
+  uint ch_num = dma_pong ? DMACH_PONG : DMACH_PING;
+  dma_channel_hw_t* ch = &dma_hw->ch[ch_num];
+  dma_hw->intr = 1u << ch_num;
+  dma_pong = not dma_pong;
+
+  if (v_scanline >= MODE_V_FRONT_PORCH && v_scanline < (MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH))
+  {
+    ch->read_addr = (uintptr_t)vblank_line_vsync_on;
+    ch->transfer_count = count_of(vblank_line_vsync_on);
+  }
+  else if (v_scanline < MODE_V_FRONT_PORCH + MODE_V_SYNC_WIDTH + MODE_V_BACK_PORCH)
+  {
+    ch->read_addr = (uintptr_t)vblank_line_vsync_off;
+    ch->transfer_count = count_of(vblank_line_vsync_off);
+  }
+  else if (not vactive_cmdlist_posted)
+  {
+    ch->read_addr = (uintptr_t)vactive_line;
+    ch->transfer_count = count_of(vactive_line);
+    vactive_cmdlist_posted = true;
+  }
+  else
+  {
+    ch->read_addr = (uintptr_t)&framebuf[(v_scanline - (MODE_V_TOTAL_LINES - MODE_V_ACTIVE_LINES)) * MODE_H_ACTIVE_PIXELS];
+    ch->transfer_count = MODE_H_ACTIVE_PIXELS / sizeof(uint32_t);
+    vactive_cmdlist_posted = false;
+  }
+
+  if (not vactive_cmdlist_posted)
+  {
+    v_scanline = (v_scanline + 1) % MODE_V_TOTAL_LINES;
+  }
+}
+
 void setupScanlineDMA()
 {
   // Both channels are set up identically, to transfer a whole scanline and
@@ -328,13 +353,21 @@ void setupScanlineDMA()
 
 void setupDVI()
 {
-  setFramebuf(colour_rgb332(0, 0b01100000, 0b01100000));//setFramebuf(110);
+  setFramebuf(colour_rgb332(0, 0b01100000, 0b01100000));
   setupHSTXrgb332();
+  /*setFramebuf(colour_rgb565(0b11111000, 0, 0));
+  setupHSTXrgb565();*/
   setupScanlineDMA();
 }
 
+// ----------------------------------------------------------------------------
+// Global variables
+
 elapsedMillis timeSinceLedToggled;
 bool isLedOn = false;
+
+// ----------------------------------------------------------------------------
+// Arduino setup
 
 void setup()
 {
@@ -342,6 +375,9 @@ void setup()
   setupDVI();
   timeSinceLedToggled = 0;
 }
+
+// ----------------------------------------------------------------------------
+// Arduino loop
 
 void loop()
 {
