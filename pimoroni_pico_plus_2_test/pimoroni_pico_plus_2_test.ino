@@ -365,7 +365,10 @@ void setupScanlineDMA()
 
 void setupDVI()
 {
-  if (clock_configure(clk_hstx, clk_sys, clk_sys, 150 * 1000000, 126 * 1000000))
+  if (clock_configure(clk_hstx,
+                      CLOCKS_CLK_SYS_CTRL_SRC_VALUE_CLKSRC_CLK_SYS_AUX,
+                      CLOCKS_CLK_SYS_CTRL_AUXSRC_VALUE_CLKSRC_PLL_SYS,
+                      SYS_CLK_HZ, 126 * 1000000))
   {
     digitalWrite(LED_BUILTIN, HIGH);
   }
