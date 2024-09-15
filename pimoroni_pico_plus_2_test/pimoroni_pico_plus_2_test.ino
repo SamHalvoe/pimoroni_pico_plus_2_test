@@ -12,6 +12,10 @@
 
 #include <elapsedMillis.h>
 
+// Code taken from and inspired by:
+// - https://github.com/raspberrypi/pico-examples/blob/master/hstx/dvi_out_hstx_encoder/dvi_out_hstx_encoder.c
+// - https://github.com/adafruit/circuitpython/blob/main/ports/raspberrypi/common-hal/picodvi/Framebuffer_RP2350.c
+
 static inline uint16_t colour_rgb565(uint8_t r, uint8_t g, uint8_t b) {
   return ((uint16_t)r & 0xf8) >> 3 | ((uint16_t)g & 0xfc) << 3 | ((uint16_t)b & 0xf8) << 8;
 }
